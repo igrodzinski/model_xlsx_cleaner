@@ -11,14 +11,14 @@ def classify_values(row, rules):
         field_to_check = rule['field']
         
         if field_to_check in row and pd.notna(row[field_to_check]):
-            value_to_check = str(row[field_to_check])
+            value_to_check = str(row[field_to_check]).lower()
             
             if 'contains' in rule:
-                if rule['contains'] in value_to_check:
+                if str(rule['contains']).lower() in value_to_check:
                     return rule['classification']
             
             if 'equals' in rule:
-                if value_to_check in rule['equals']:
+                if value_to_check in [str(item).lower() for item in rule['equals']]:
                     return rule['classification']
                     
     return 'other'
