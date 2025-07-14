@@ -1,0 +1,49 @@
+{
+  "rules": [
+    {
+      "field": "Unikalne_Wartości",
+      "contains": "ID",
+      "classification": "_base_ID"
+    },
+    {
+      "field": "Unikalne_Wartości",
+      "contains": "IDENTIFICATION",
+      "classification": "_base_ID"
+    },
+    {
+      "field": "TYPE",
+      "equals": ["date", "timestamp"],
+      "classification": "_base_dates"
+    },
+    {
+      "field": "TYPE",
+      "equals": ["number", "int", "float"],
+      "classification": "_base_numeric"
+    },
+    {
+      "field": "Unikalne_Wartości",
+      "contains": "AMOUNT",
+      "classification": "_base_financial"
+    },
+    {
+      "field": "Unikalne_Wartości",
+      "contains": "PRICE",
+      "classification": "_base_financial"
+    },
+    {
+      "field": "Unikalne_Wartości",
+      "contains": "NAME",
+      "classification": "_base_string"
+    },
+    {
+      "field": "Unikalne_Wartości",
+      "contains": "DESC",
+      "classification": "_base_string"
+    },
+    {
+      "field": "TYPE",
+      "equals": ["yesno", "boolean"],
+      "classification": "_base_boolean"
+    }
+  ]
+}
