@@ -1,0 +1,14 @@
+{
+  "rules": [
+    {
+      "field": "Unikalne_Wartości",
+      "contains": "ID",
+      "classification": "_base_ID"
+    },
+    {
+      "field": "TYPE",
+      "equals": ["date", "timestamp"],
+      "classification": "_base_dates"
+    }
+  ]
+}

@@ -1,6 +1,27 @@
 import os
 import pandas as pd
 from pathlib import Path
+import json
+
+def classify_values(row, rules):
+    """
+    Apply classification rules to a row of data.
+    """
+    for rule in rules['rules']:
+        field_to_check = rule['field']
+        
+        if field_to_check in row and pd.notna(row[field_to_check]):
+            value_to_check = str(row[field_to_check])
+            
+            if 'contains' in rule:
+                if rule['contains'] in value_to_check:
+                    return rule['classification']
+            
+            if 'equals' in rule:
+                if value_to_check in rule['equals']:
+                    return rule['classification']
+                    
+    return 'other'
 
 def process_excel_files(base_folder, cleaned_folder="cleaned_models"):
     """
@@ -103,7 +124,7 @@ def clean_excel_file(df):
     
     return df
 
-def create_unique_values_sheet(combined_file_path, column_name='COLUMN NAME', new_sheet_name='Unique_Values'):
+def create_unique_values_sheet(combined_file_path, column_name='COLUMN NAME', new_sheet_name='Unique_Values', rules_file='classification_rules.json'):
     """
     Tworzy nowy arkusz z unikalnymi wartościami i ich liczbą wystąpień
     
@@ -111,10 +132,15 @@ def create_unique_values_sheet(combined_file_path, column_name='COLUMN NAME', ne
         combined_file_path (str): Ścieżka do pliku combined_file.xlsx
         column_name (str): Nazwa kolumny do analizy (domyślnie 'E')
         new_sheet_name (str): Nazwa nowego arkusza
+        rules_file (str): Ścieżka do pliku JSON z regułami klasyfikacji
     """
     try:
         # Wczytanie danych z głównego arkusza
         df = pd.read_excel(combined_file_path)
+        
+        # Wczytanie reguł klasyfikacji
+        with open(rules_file, 'r') as f:
+            rules = json.load(f)
         
         # Sprawdzenie czy kolumna istnieje
         if column_name not in df.columns:
@@ -157,6 +183,9 @@ def create_unique_values_sheet(combined_file_path, column_name='COLUMN NAME', ne
         
         # Tworzenie DataFrame z wynikami
         value_counts_with_files = pd.DataFrame(grouped_data)
+        
+        # Dodanie kolumny z klasyfikacją
+        value_counts_with_files['Classification'] = value_counts_with_files.apply(lambda row: classify_values(row, rules), axis=1)
         
         # Sortowanie według liczby wystąpień (malejąco)
         value_counts_with_files = value_counts_with_files.sort_values('Liczba_Wystąpień', ascending=False)
