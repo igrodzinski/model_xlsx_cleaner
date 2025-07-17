@@ -3,24 +3,45 @@ import pandas as pd
 from pathlib import Path
 import json
 
-def classify_values(row, rules):
+def classify_values(row, rules, original_column_name_from_source):
     """
     Apply classification rules to a row of data.
     """
+    # First, check for column name rules
     for rule in rules['rules']:
-        field_to_check = rule['field']
-        
-        if field_to_check in row and pd.notna(row[field_to_check]):
-            value_to_check = str(row[field_to_check]).lower()
-            
+        field_to_check_rule = str(rule['field']).lower().strip()
+        if field_to_check_rule == '_original_column_name_':
+            target_value = str(original_column_name_from_source).lower().strip()
             if 'contains' in rule:
-                if str(rule['contains']).lower() in value_to_check:
+                contains_value = str(rule['contains']).lower().strip()
+                if contains_value and contains_value in target_value:
                     return rule['classification']
-            
             if 'equals' in rule:
-                if value_to_check in [str(item).lower() for item in rule['equals']]:
+                equals_list = [str(item).lower().strip() for item in rule['equals']]
+                if target_value in equals_list:
                     return rule['classification']
-                    
+
+    # Then, check for rules on other fields
+    for rule in rules['rules']:
+        field_to_check_rule = str(rule['field']).lower().strip()
+        if field_to_check_rule != '_original_column_name_':
+            actual_field_name = None
+            for col in row.index:
+                if str(col).lower().strip() == field_to_check_rule:
+                    actual_field_name = col
+                    break
+            
+            if actual_field_name and pd.notna(row[actual_field_name]):
+                target_value = str(row[actual_field_name]).lower().strip()
+                if 'contains' in rule:
+                    contains_value = str(rule['contains']).lower().strip()
+                    if contains_value and contains_value in target_value:
+                        return rule['classification']
+                if 'equals' in rule:
+                    equals_list = [str(item).lower().strip() for item in rule['equals']]
+                    if target_value in equals_list:
+                        return rule['classification']
+
     return 'other'
 
 def process_excel_files(base_folder, cleaned_folder="cleaned_models"):
@@ -72,15 +93,6 @@ def process_excel_files(base_folder, cleaned_folder="cleaned_models"):
     if all_dataframes:
         combined_df = pd.concat(all_dataframes, ignore_index=True)
         
-        # Zliczanie wystąpień wartości z kolumny E i dodanie do kolumny Q
-        if 'COLUMN NAME' in combined_df.columns:
-            value_counts = combined_df['COLUMN NAME'].value_counts()
-            combined_df['COUNT COLUMN NAME'] = combined_df['COLUMN NAME'].map(value_counts)
-            print("Dodano kolumnę Q z liczbą wystąpień wartości z kolumny E")
-        else:
-            print("Uwaga: Kolumna COLUMN NAME nie została znaleziona w danych")
-            combined_df['COUNT COLUMN NAME'] = None
-        
         # Zapisanie połączonego pliku
         combined_file_path = os.path.join(cleaned_folder, "combined_file.xlsx")
         combined_df.to_excel(combined_file_path, index=False)
@@ -102,35 +114,20 @@ def clean_excel_file(df):
     Returns:
         pandas.DataFrame: Oczyszczony DataFrame
     """
-    # Get file name (dataset name)
-    # dataset_name = os.path.basename(file_path).replace(".xlsx","")
-    # Load the Excel file
-    # df = pd.read_excel(file_path, engine='openpyxl')
-    
     # Drop blank rows
     df.dropna(how='all', inplace=True)
-    
-     # Usuń pierwszy wiersz
-    df = df.iloc[0:].reset_index(drop=True)
-    
-    # Ustaw drugi wiersz jako nagłówek
-    df.columns = df.iloc[0]
-    df = df[1:].reset_index(drop=True)
-    
-    # Usuń kolumny 0, 6, 8, 12
-    # df.drop(df.columns[[0, 6, 8]], axis=1, inplace=True)
-    # Inicjalizacja zmiennych
-    df = df.drop(df.columns[df.columns.isna()],axis = 1)
+    # Drop blank columns
+    df.dropna(axis=1, how='all', inplace=True)
     
     return df
 
-def create_unique_values_sheet(combined_file_path, column_name='COLUMN NAME', new_sheet_name='Unique_Values', rules_file='classification_rules.json'):
+def create_unique_values_sheet(combined_file_path, column_name, new_sheet_name='Unique_Values', rules_file='classification_rules.json'):
     """
     Tworzy nowy arkusz z unikalnymi wartościami i ich liczbą wystąpień
     
     Args:
         combined_file_path (str): Ścieżka do pliku combined_file.xlsx
-        column_name (str): Nazwa kolumny do analizy (domyślnie 'E')
+        column_name (str): Nazwa kolumny do analizy
         new_sheet_name (str): Nazwa nowego arkusza
         rules_file (str): Ścieżka do pliku JSON z regułami klasyfikacji
     """
@@ -185,7 +182,7 @@ def create_unique_values_sheet(combined_file_path, column_name='COLUMN NAME', ne
         value_counts_with_files = pd.DataFrame(grouped_data)
         
         # Dodanie kolumny z klasyfikacją
-        value_counts_with_files['Classification'] = value_counts_with_files.apply(lambda row: classify_values(row, rules), axis=1)
+        value_counts_with_files['Classification'] = value_counts_with_files.apply(lambda row: classify_values(row, rules, column_name), axis=1)
         
         # Sortowanie według liczby wystąpień (malejąco)
         value_counts_with_files = value_counts_with_files.sort_values('Liczba_Wystąpień', ascending=False)
@@ -203,15 +200,32 @@ def create_unique_values_sheet(combined_file_path, column_name='COLUMN NAME', ne
 
 # Użycie skryptu
 # Określ ścieżkę do głównego folderu
-main_folder = r"C:\Users\igrod\Documents\@BI_DEVELOPER\@LOOKER\lookml_generator_v2\#models"  # zmień na swoją ścieżkę
+main_folder = r"models"
     
 # Uruchomienie procesu
 result_file = process_excel_files(main_folder)
    
 if result_file:
-    create_unique_values_sheet(result_file, column_name='COLUMN NAME', new_sheet_name='Unique_Values')
-    print("Dodano arkusz z unikalnymi wartościami z kolumny COLUMN NAME")
-    print(f"\nProces zakończony pomyślnie!")
-    print(f"Połączony plik znajduje się w: {result_file}")
+    try:
+        df = pd.read_excel(result_file)
+        column_to_analyze = None
+        # Find a column ending with _id (case-insensitive)
+        for col in df.columns:
+            if str(col).lower().strip().endswith('_id'):
+                column_to_analyze = col
+                break
+        
+        if not column_to_analyze:
+            # Fallback to the original hardcoded column name if no _id column is found
+            print("Nie znaleziono kolumny kończącej się na '_id'. Używam domyślnej kolumny 'COLUMN NAME'.")
+            column_to_analyze = 'COLUMN NAME'
+
+        create_unique_values_sheet(result_file, column_name=column_to_analyze, new_sheet_name=f'Unique_Values_{column_to_analyze}')
+        print(f"Dodano arkusz z unikalnymi wartościami z kolumny '{column_to_analyze}'")
+
+        print(f"\nProces zakończony pomyślnie!")
+        print(f"Połączony plik znajduje się w: {result_file}")
+    except Exception as e:
+        print(f"Wystąpił błąd podczas analizy pliku: {e}")
 else:
     print("\nProces zakończony z błędami lub brak plików do przetworzenia")

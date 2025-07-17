@@ -1,8 +1,8 @@
 {
   "rules": [
     {
-      "field": "Unikalne_Wartości",
-      "contains": "ID",
+      "field": "_original_column_name_",
+      "contains": "_ID",
       "classification": "_base_ID"
     },
     {

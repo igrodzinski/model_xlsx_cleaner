@@ -1,13 +1,18 @@
 {
   "rules": [
     {
-      "field": "Unikalne_Wartości",
+      "field": "_original_column_name_",
       "contains": "ID",
       "classification": "_base_ID"
     },
     {
       "field": "Unikalne_Wartości",
       "contains": "IDENTIFICATION",
+      "classification": "_base_ID"
+    },
+    {
+      "field": "Unikalne_Wartości",
+      "contains": "ID",
       "classification": "_base_ID"
     },
     {
