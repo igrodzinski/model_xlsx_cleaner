@@ -6,42 +6,44 @@ import json
 def classify_values(row, rules, original_column_name_from_source):
     """
     Apply classification rules to a row of data.
+    The rules are processed in order. The first rule that matches determines the classification.
     """
-    # First, check for column name rules
     for rule in rules['rules']:
-        field_to_check_rule = str(rule['field']).lower().strip()
-        if field_to_check_rule == '_original_column_name_':
+        field_to_check = str(rule['field']).lower().strip()
+        
+        target_value = None
+        
+        # Check if the rule applies to the column name itself
+        if field_to_check == '_original_column_name_':
             target_value = str(original_column_name_from_source).lower().strip()
-            if 'contains' in rule:
-                contains_value = str(rule['contains']).lower().strip()
-                if contains_value and contains_value in target_value:
-                    return rule['classification']
-            if 'equals' in rule:
-                equals_list = [str(item).lower().strip() for item in rule['equals']]
-                if target_value in equals_list:
-                    return rule['classification']
-
-    # Then, check for rules on other fields
-    for rule in rules['rules']:
-        field_to_check_rule = str(rule['field']).lower().strip()
-        if field_to_check_rule != '_original_column_name_':
+        # Check if the rule applies to a field in the current row
+        # The row is from the 'value_counts_with_files' dataframe
+        elif field_to_check in [str(c).lower().strip() for c in row.index]:
+            # Find the actual column name (with original casing)
             actual_field_name = None
             for col in row.index:
-                if str(col).lower().strip() == field_to_check_rule:
+                if str(col).lower().strip() == field_to_check:
                     actual_field_name = col
                     break
             
             if actual_field_name and pd.notna(row[actual_field_name]):
                 target_value = str(row[actual_field_name]).lower().strip()
-                if 'contains' in rule:
-                    contains_value = str(rule['contains']).lower().strip()
-                    if contains_value and contains_value in target_value:
-                        return rule['classification']
-                if 'equals' in rule:
-                    equals_list = [str(item).lower().strip() for item in rule['equals']]
-                    if target_value in equals_list:
-                        return rule['classification']
 
+        # If we have a value to check, apply the rule's logic
+        if target_value is not None:
+            if 'contains' in rule:
+                contains_value = str(rule['contains']).lower().strip()
+                # Ensure contains_value is not empty before checking
+                if contains_value and contains_value in target_value:
+                    return rule['classification']
+            
+            if 'equals' in rule:
+                # Ensure the 'equals' list is not empty and contains strings
+                equals_list = [str(item).lower().strip() for item in rule.get('equals', [])]
+                if target_value in equals_list:
+                    return rule['classification']
+
+    # If no rules matched, return 'other'
     return 'other'
 
 def process_excel_files(base_folder, cleaned_folder="cleaned_models"):
